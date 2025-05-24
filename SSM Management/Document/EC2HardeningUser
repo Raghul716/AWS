@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Harden EC2: Create secure user and disable ec2-user permissions",
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "hardenEC2UserSetup",
+      "inputs": {
+        "runCommand": [
+          "#!/bin/bash",
+          "cat << 'EOF' > /tmp/harden.sh",
+          "#!/bin/bash",
+          "set -e",
+          "USERNAME=secureadmin",
+          "echo \"[+] Checking if user $USERNAME exists...\"",
+          "if id \"$USERNAME\" &>/dev/null; then",
+          "  echo \"[!] User $USERNAME already exists. Skipping creation.\"",
+          "else",
+          "  echo \"[+] Creating user $USERNAME...\"",
+          "  SECURE_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c9)",
+          "  useradd $USERNAME",
+          "  echo \"$USERNAME:$SECURE_PASS\" | sudo chpasswd",
+          "  chage -d 0 $USERNAME",
+          "  echo \"[+] User created. Password: $SECURE_PASS\"",
+          "fi",
+          "usermod -aG wheel $USERNAME",
+          "echo \"[+] Removing ec2-user from sudo groups...\"",
+          "gpasswd -d ec2-user wheel || true",
+          "usermod -L ec2-user || true",
+          "echo \"[✔] Hardened instance: $USERNAME is ready. ec2-user locked.\"",
+          "EOF",
+          "bash /tmp/harden.sh"
+        ]
+      }
+    }
+  ]
+}
